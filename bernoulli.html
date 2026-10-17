@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bernoulli Distribution</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0 0 -10px;
+      font-family: Arial, sans-serif;
+      color: #203849;
+      background: white;
+    }
+
+    main {
+      max-width: 620px;
+      margin: auto;
+      padding: 12px;
+      --info-width: 145px;
+      --gap: 10px;
+    }
+
+    p {
+      margin: 0 0 8px;
+      color: #607585;
+      font-size: 12px;
+    }
+
+    section {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--info-width);
+      align-items: center;
+      gap: var(--gap);
+      margin-bottom: 10px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    h2 {
+      font-size: 12px;
+      margin: 0 0 5px;
+    }
+
+    .value {
+      color: #16876f;
+      font-size: 11px;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .value span {
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .control {
+      position: relative;
+      width: calc(100% - var(--info-width) - var(--gap));
+      height: 24px;
+      margin: 0;
+    }
+
+    input[type="range"] {
+      appearance: none;
+      -webkit-appearance: none;
+      position: absolute;
+      left: calc(8.333333% - 5px);
+      width: calc(86.111111% + 10px);
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 2px;
+      border: none;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 5px,
+        #a8b8c2 5px,
+        #a8b8c2 calc(100% - 5px),
+        transparent calc(100% - 5px)
+      );
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 2px;
+      border: none;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 5px,
+        #a8b8c2 5px,
+        #a8b8c2 calc(100% - 5px),
+        transparent calc(100% - 5px)
+      );
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      margin-top: -4px;
+      border: none;
+      border-radius: 50%;
+      background: #168aab;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border: none;
+      border-radius: 50%;
+      background: #168aab;
+    }
+
+    input[type="range"]:focus-visible {
+      outline: 2px solid #168aab;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+      main {
+        padding: 10px;
+        --info-width: 125px;
+        --gap: 6px;
+      }
+
+      .value { font-size: 10px; }
+      h2 { font-size: 11px; }
+    }
+  </style>
+</head>
+
+<body>
+<main>
+  <p>Fixed parameter: p = 0.33</p>
+
+  <div class="control">
+    <input
+      id="x"
+      type="range"
+      min="-0.5"
+      max="1.5"
+      step="0.01"
+      value="0"
+      aria-label="Choose x"
+    >
+  </div>
+
+  <section>
+    <svg
+      id="pmf"
+      viewBox="0 0 720 265"
+      role="img"
+      aria-label="Bernoulli probability mass function"
+    ></svg>
+
+    <div>
+      <h2>PMF</h2>
+      <div class="value" id="pmfValue"></div>
+    </div>
+  </section>
+
+  <section>
+    <svg
+      id="cdf"
+      viewBox="0 0 720 265"
+      role="img"
+      aria-label="Bernoulli cumulative distribution"
+    ></svg>
+
+    <div>
+      <h2>CDF</h2>
+      <div class="value" id="cdfValue" aria-live="polite"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const p = 0.33;
+  const q = 1 - p;
+
+  const get = id => document.getElementById(id);
+  const format = value => Number(value.toFixed(3)).toString();
+
+  const xMin = -0.5;
+  const xMax = 1.5;
+
+  const X = value =>
+    60 + (value - xMin) * 620 / (xMax - xMin);
+
+  const Y = (value, maximum) =>
+    220 - value * 180 / maximum;
+
+  function line(
+    x1, y1, x2, y2, color,
+    dashed = false, width = 1.5
+  ) {
+    return `
+      <line
+        x1="${x1}" y1="${y1}"
+        x2="${x2}" y2="${y2}"
+        stroke="${color}"
+        stroke-width="${width}"
+        ${dashed ? 'stroke-dasharray="5 4"' : ""}
+      />
+    `;
+  }
+
+  function text(x, y, content, anchor = "middle") {
+    return `
+      <text
+        x="${x}" y="${y}"
+        text-anchor="${anchor}"
+        font-family="Arial"
+        font-size="18"
+        fill="#607585"
+      >${content}</text>
+    `;
+  }
+
+  function circle(x, y, color, filled = true, radius = 6) {
+    return `
+      <circle
+        cx="${x}"
+        cy="${y}"
+        r="${radius}"
+        fill="${filled ? color : "white"}"
+        stroke="${color}"
+        stroke-width="2"
+      />
+    `;
+  }
+
+  function axes(maximum, ticks) {
+    let result = "";
+
+    ticks.forEach(value => {
+      const y = Y(value, maximum);
+      result += line(60, y, 680, y, "#e0e8ed");
+      result += text(49, y + 5, format(value), "end");
+    });
+
+    result += line(60, 220, 680, 220, "#718591");
+
+    [-0.5, 0, 0.5, 1, 1.5].forEach(value => {
+      result += text(X(value), 245, format(value));
+    });
+
+    return result + text(700, 225, "t");
+  }
+
+  function update() {
+    const x = Number(get("x").value);
+
+    const mass = x === 0 ? q : x === 1 ? p : 0;
+    const cumulative = x < 0 ? 0 : x < 1 ? q : 1;
+
+    get("pmfValue").innerHTML =
+      `<span>P(X = ${format(x)})</span> ` +
+      `<span>= ${format(mass)} (${format(mass * 100)}%)</span>`;
+
+    get("cdfValue").innerHTML =
+      `<span>F(${format(x)}) = P(X ≤ ${format(x)})</span> ` +
+      `<span>= ${format(cumulative)} ` +
+      `(${format(cumulative * 100)}%)</span>`;
+
+    // PMF: probability exists only at 0 and 1.
+    const pmfMaximum = 1.1;
+    let pmf = axes(pmfMaximum, [0, 0.25, 0.5, 0.75, 1]);
+
+    [[0, q], [1, p]].forEach(([value, probability]) => {
+      const top = Y(probability, pmfMaximum);
+
+      pmf += line(
+        X(value), 220,
+        X(value), top,
+        "#278eaf", false, 3
+      );
+
+      pmf += circle(X(value), top, "#278eaf");
+      pmf += text(X(value), top - 14, format(probability));
+    });
+
+    pmf += line(X(x), 28, X(x), 220, "#16876f", true);
+
+    pmf += circle(
+      X(x), Y(mass, pmfMaximum),
+      "#16876f", true, 5
+    );
+
+    get("pmf").innerHTML = pmf;
+
+    // CDF: right-continuous steps.
+    const cdfMaximum = 1.1;
+    const yZero = Y(0, cdfMaximum);
+    const yQ = Y(q, cdfMaximum);
+    const yOne = Y(1, cdfMaximum);
+    const pointY = Y(cumulative, cdfMaximum);
+
+    let cdf = axes(cdfMaximum, [0, 0.25, 0.5, 0.75, 1]);
+
+    // Separate horizontal segments avoid implying
+    // that intermediate values occur at a jump.
+    cdf += `
+      <path
+        d="
+          M ${X(xMin)} ${yZero} H ${X(0)}
+          M ${X(0)} ${yQ} H ${X(1)}
+          M ${X(1)} ${yOne} H ${X(xMax)}
+        "
+        fill="none"
+        stroke="#278eaf"
+        stroke-width="3"
+      />
+    `;
+
+    cdf += line(
+      X(x), 220, X(x), pointY,
+      "#16876f", true
+    );
+
+    cdf += line(
+      60, pointY, X(x), pointY,
+      "#16876f", true
+    );
+
+    // Open endpoints: excluded values.
+    cdf += circle(X(0), yZero, "#278eaf", false);
+    cdf += circle(X(1), yQ, "#278eaf", false);
+
+    // Closed endpoints: actual CDF values at 0 and 1.
+    cdf += circle(X(0), yQ, "#278eaf");
+    cdf += circle(X(1), yOne, "#278eaf");
+
+    cdf += circle(X(x), pointY, "#16876f", true, 5);
+
+    get("cdf").innerHTML = cdf;
+  }
+
+  get("x").addEventListener("input", update);
+  update();
+</script>
+</body>
+</html>
