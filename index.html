@@ -16,97 +16,130 @@
     }
 
     main {
-      max-width: 760px;
+      max-width: 620px;
       margin: auto;
-      padding: 20px;
+      padding: 12px;
+      --info-width: 145px;
+      --gap: 10px;
     }
 
-    h1 { font-size: 24px; margin-bottom: 8px; }
+    p {
+      margin: 0 0 8px;
+      color: #607585;
+      font-size: 12px;
+    }
+
+    section {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--info-width);
+      align-items: center;
+      gap: var(--gap);
+      margin-bottom: 10px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
     h2 {
-      font-size: 18px;
-      margin: 4px 0 6px;
+      font-size: 12px;
+      margin: 0 0 5px;
     }
-    p { color: #607585; }
-
-.control {
-  width: 260px;
-  max-width: 100%;
-  margin: 8px auto 4px;
-  padding: 0;
-  background: none;
-}
-
-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: normal;
-}
-
-input[type="range"] {
-  appearance: none;
-  -webkit-appearance: none;
-  display: block;
-  width: 100%;
-  height: 24px;
-  margin: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* Thin line — Chrome, Edge, Safari */
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 2px;
-  background: #a8b8c2;
-  border-radius: 2px;
-}
-
-  /* Small dot — Chrome, Edge, Safari */
-  input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 10px;
-    height: 10px;
-    margin-top: -4px;
-    border: none;
-    border-radius: 50%;
-    background: #168aab;
-  }
-  
-  /* Firefox */
-  input[type="range"]::-moz-range-track {
-    height: 2px;
-    background: #a8b8c2;
-    border-radius: 2px;
-  }
-  
-  input[type="range"]::-moz-range-thumb {
-    width: 10px;
-    height: 10px;
-    border: none;
-    border-radius: 50%;
-    background: #168aab;
-  }
-
-
-  svg {
-    display: block;
-    width: 100%;
-    max-width: 420px;
-    height: auto;
-    margin: 0 auto;
-  }
 
     .value {
       color: #16876f;
+      font-size: 11px;
+      line-height: 1.5;
       font-variant-numeric: tabular-nums;
-      margin-bottom: 4px;
     }
 
-    section { margin-bottom: 24px; }
+    /* Each part stays together, allowing at most two lines. */
+    .value span {
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .control {
+      position: relative;
+      width: calc(100% - var(--info-width) - var(--gap));
+      height: 24px;
+      margin: 0;
+    }
+
+    input[type="range"] {
+      appearance: none;
+      -webkit-appearance: none;
+      position: absolute;
+      left: calc(8.333333% - 5px);
+      width: calc(86.111111% + 10px);
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 2px;
+      border: none;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 5px,
+        #a8b8c2 5px,
+        #a8b8c2 calc(100% - 5px),
+        transparent calc(100% - 5px)
+      );
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 2px;
+      border: none;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 5px,
+        #a8b8c2 5px,
+        #a8b8c2 calc(100% - 5px),
+        transparent calc(100% - 5px)
+      );
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      margin-top: -4px;
+      border: none;
+      border-radius: 50%;
+      background: #168aab;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border: none;
+      border-radius: 50%;
+      background: #168aab;
+    }
+
+    input[type="range"]:focus-visible {
+      outline: 2px solid #168aab;
+      outline-offset: 2px;
+    }
 
     @media (max-width: 480px) {
-      main { padding: 12px; }
+      main {
+        padding: 10px;
+        --info-width: 125px;
+        --gap: 6px;
+      }
+
+      .value { font-size: 10px; }
+      h2 { font-size: 11px; }
     }
   </style>
 </head>
@@ -116,11 +149,6 @@ input[type="range"]::-webkit-slider-runnable-track {
   <p>Fixed parameters: a = 0, b = 4</p>
 
   <div class="control">
-    <label for="x">
-      Move x
-      <output id="xValue" for="x">2</output>
-    </label>
-
     <input
       id="x"
       type="range"
@@ -128,29 +156,36 @@ input[type="range"]::-webkit-slider-runnable-track {
       max="5"
       step="0.05"
       value="2"
+      aria-label="Choose x"
     >
   </div>
 
   <section>
-    <h2>PDF</h2>
-    <div class="value" id="pdfValue"></div>
     <svg
       id="pdf"
       viewBox="0 0 720 265"
       role="img"
       aria-label="Uniform probability density"
     ></svg>
+
+    <div>
+      <h2>PDF</h2>
+      <div class="value" id="pdfValue"></div>
+    </div>
   </section>
 
   <section>
-    <h2>CDF</h2>
-    <div class="value" id="cdfValue" aria-live="polite"></div>
     <svg
       id="cdf"
       viewBox="0 0 720 265"
       role="img"
       aria-label="Uniform cumulative distribution"
     ></svg>
+
+    <div>
+      <h2>CDF</h2>
+      <div class="value" id="cdfValue" aria-live="polite"></div>
+    </div>
   </section>
 </main>
 
@@ -161,7 +196,6 @@ input[type="range"]::-webkit-slider-runnable-track {
   const get = id => document.getElementById(id);
   const format = value => Number(value.toFixed(3)).toString();
 
-  // Fixed graph coordinates.
   const X = value => 60 + (value + 1) * 620 / 6;
   const Y = (value, maximum) => 220 - value * 180 / maximum;
 
@@ -183,7 +217,7 @@ input[type="range"]::-webkit-slider-runnable-track {
         x="${x}" y="${y}"
         text-anchor="${anchor}"
         font-family="Arial"
-        font-size="15"
+        font-size="18"
         fill="#607585"
       >${content}</text>
     `;
@@ -211,20 +245,14 @@ input[type="range"]::-webkit-slider-runnable-track {
     const x = Number(get("x").value);
     const height = 1 / (b - a);
     const density = x >= a && x <= b ? height : 0;
-
-    const probability = Math.max(
-      0,
-      Math.min(1, (x - a) / (b - a))
-    );
-
-    get("xValue").textContent = format(x);
+    const probability = Math.max(0, Math.min(1, (x - a) / (b - a)));
 
     get("pdfValue").textContent =
       `f(${format(x)}) = ${format(density)}`;
 
-    get("cdfValue").textContent =
-      `F(${format(x)}) = P(X ≤ ${format(x)}) = ` +
-      `${format(probability)} (${format(probability * 100)}%)`;
+    get("cdfValue").innerHTML =
+      `<span>F(${format(x)}) = P(X ≤ ${format(x)})</span> ` +
+      `<span>= ${format(probability)} (${format(probability * 100)}%)</span>`;
 
     // PDF
     const pdfMaximum = 0.3;
@@ -255,9 +283,7 @@ input[type="range"]::-webkit-slider-runnable-track {
     `;
 
     [a, b].forEach(bound => {
-      pdf += line(
-        X(bound), 220, X(bound), top, "#8cb8ca", true
-      );
+      pdf += line(X(bound), 220, X(bound), top, "#8cb8ca", true);
     });
 
     pdf += line(X(x), 28, X(x), 220, "#16876f", true);
@@ -271,7 +297,6 @@ input[type="range"]::-webkit-slider-runnable-track {
       />
     `;
 
-    pdf += text(X(x), 20, `x = ${format(x)}`);
     get("pdf").innerHTML = pdf;
 
     // CDF
