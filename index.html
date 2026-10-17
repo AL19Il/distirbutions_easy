@@ -1,59 +1,270 @@
-<!doctype html>
-<html lang="en" dir="ltr">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Uniform distribution — interactive lab</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#f5f8fb;color:#193449;font:16px Arial,sans-serif;line-height:1.6}main{max-width:960px;margin:auto;padding:24px}h1{font-size:clamp(24px,5vw,34px);margin:0}p{margin:8px 0 18px}.tag{color:#237f9d;font-weight:bold;font-size:14px}.panel{background:white;border:1px solid #dce6ec;border-radius:18px;padding:22px;margin-top:18px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:22px}.control{margin:15px 0}label{display:flex;justify-content:space-between;font-weight:bold}output,.math{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums}output{background:#e8f4fa;border-radius:6px;padding:0 9px}input[type=range]{width:100%;direction:ltr;accent-color:#278eaf;height:36px;cursor:pointer}svg{width:100%;height:auto;display:block;direction:ltr}button{font:inherit;cursor:pointer;background:#eaf3f7;border:1px solid #cbdde6;border-radius:9px;padding:8px 14px;min-height:44px}button:hover{background:#d6eaf3}button:focus-visible,input:focus-visible{outline:3px solid #e29e28;outline-offset:3px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:#f3f8fa;padding:12px;border-radius:10px}.stat strong{display:block;font-size:23px;color:#177a9c}.small{font-size:14px;color:#526c7d}.prob{background:#e7f6f2;border-right:4px solid #209b83;padding:13px;border-radius:7px}.formula{direction:ltr;text-align:left;overflow-wrap:anywhere;background:#f7f9fb;padding:12px;border-radius:8px;font-family:Arial,sans-serif;margin:8px 0}.legend{display:flex;gap:20px;flex-wrap:wrap;font-size:14px}.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:5px;background:#36a7cf}.green{background:#209b83}h2{font-size:19px;margin:0 0 10px}@media(max-width:620px){main{padding:12px}.panel{padding:14px}.layout{grid-template-columns:1fr;gap:0}.stats{grid-template-columns:1fr}.stat strong{display:inline;margin-right:12px}}
-</style></head>
-<body><main>
-<div class="tag">EXPLORE • PREDICT • UNDERSTAND</div>
-<h1>Continuous uniform distribution</h1>
-<p><span class="math">X ∼ U(a, b)</span> — Equal-length intervals within the support have equal probabilities.</p>
-<section class="panel layout" aria-label="Parameter controls">
-<div>
-<div class="control"><label for="a">Lower bound a <output id="av" for="a"></output></label><input id="a" type="range" min="-5" max="4.5" step="0.5" value="0"></div>
-<div class="control"><label for="b">Upper bound b <output id="bv" for="b"></output></label><input id="b" type="range" min="-4.5" max="5" step="0.5" value="4"></div>
-<div class="control"><label for="x">Cutoff x <output id="xv" for="x"></output></label><input id="x" type="range" min="-6" max="6" step="0.1" value="2"></div>
-<button id="reset" type="button">Reset</button>
-<p class="small">Bounds adjust automatically to keep a &lt; b. The minimum interval width in this demo is 0.5.</p>
-</div><div>
-<h2>What are you seeing?</h2>
-<p>The blue rectangle is the probability density (PDF). The green area up to x is the cumulative probability (CDF).</p>
-<div class="prob" aria-live="polite"><span class="math" id="prob"></span><br><span id="explain"></span></div>
-<p class="small">Try increasing b while holding a fixed. The height decreases, but the total area stays 1.</p>
-</div></section>
-<section class="panel"><h2>Density and cumulative probability</h2>
-<svg id="plot" viewBox="0 0 800 330" role="img" aria-labelledby="plotTitle plotDesc"><title id="plotTitle">Uniform probability density</title><desc id="plotDesc">Density rectangle with cumulative area shaded up to x</desc><g id="drawing"></g></svg>
-<div class="legend"><span><i class="dot"></i>Density</span><span><i class="dot green"></i>Area up to x</span></div>
-<p class="small">Fixed axes: horizontal −6 to 6; vertical 0 to 2.2. Height is density, not probability, so it can exceed 1.</p>
-</section>
-<section class="panel"><div class="stats">
-<div class="stat">Mean <strong class="math" id="mean"></strong><div class="math">E[X] = (a+b)/2</div></div>
-<div class="stat">Variance <strong class="math" id="variance"></strong><div class="math">Var(X) = (b−a)²/12</div></div>
-<div class="stat">Density height <strong class="math" id="height"></strong><div class="math">f(t) = 1/(b−a)</div></div>
-</div><h2 style="margin-top:22px">Formulas with your values</h2>
-<div class="formula" id="values"></div>
-<div class="formula">f(t) = 1/(b−a) &nbsp; for a ≤ t ≤ b; &nbsp; 0 otherwise.<br>F(x) = 0 &nbsp; if x ≤ a<br>F(x) = (x−a)/(b−a) &nbsp; if a &lt; x &lt; b<br>F(x) = 1 &nbsp; if x ≥ b</div>
-<p class="small">For a continuous variable, P(X=x)=0. Probability comes from area over an interval, not the density height at a point.</p></section>
-<section class="panel"><h2>A memorable example</h2><p>Suppose a waiting time is uniformly distributed between 0 and 4 minutes. The probability of waiting at most 2 minutes is 50%. Every one-minute interval within that range has probability 25%.</p><p><b>Predict before moving:</b> What happens to the mean, variance, and height if you increase b while keeping a fixed? Change the bound and check.</p></section>
-</main><script>
-'use strict';
-const el=id=>document.getElementById(id), fmt=n=>Number(n.toFixed(3)).toString();
-function uniformStats(a,b,x){const w=b-a;return {mean:(a+b)/2,variance:w*w/12,height:1/w,p:Math.max(0,Math.min(1,(x-a)/w))};}
-function update(changed){let a=+el('a').value,b=+el('b').value,x=+el('x').value;if(a>=b){if(changed==='a'){b=a+.5;el('b').value=b;}else{a=b-.5;el('a').value=a;}}const s=uniformStats(a,b,x);
-for(const [id,v] of [['av',a],['bv',b],['xv',x],['mean',s.mean],['variance',s.variance],['height',s.height]])el(id).textContent=fmt(v);
-el('prob').textContent=`P(X ≤ ${fmt(x)}) = ${fmt(s.p)} = ${fmt(s.p*100)}%`;
-el('explain').textContent=x<=a?'No area lies at or below this cutoff within the distribution.':x>=b?'The entire distribution lies at or below this cutoff.':'The green area is the fraction of the interval at or below the cutoff.';
-el('values').textContent=`E[X] = (${fmt(a)} + ${fmt(b)})/2 = ${fmt(s.mean)}   |   Var(X) = (${fmt(b)} − (${fmt(a)}))²/12 = ${fmt(s.variance)}   |   f(t) = 1/${fmt(b-a)} = ${fmt(s.height)}`;
-const X=t=>60+(t+6)*680/12,Y=t=>280-t*240/2.2;
-let svg='';for(let v=0;v<=2;v+=.5)svg+=`<line x1="60" y1="${Y(v)}" x2="740" y2="${Y(v)}" stroke="#e2eaf0"/><text x="48" y="${Y(v)+5}" text-anchor="end" font-size="14" fill="#526c7d">${v}</text>`;
-for(let t=-6;t<=6;t++)svg+=`<text x="${X(t)}" y="304" text-anchor="middle" font-size="14" fill="#526c7d">${t}</text>`;
-svg+=`<rect x="${X(a)}" y="${Y(s.height)}" width="${X(b)-X(a)}" height="${Y(0)-Y(s.height)}" fill="#36a7cf" fill-opacity=".2" stroke="#278eaf" stroke-width="2"/>`;
-const cut=Math.max(a,Math.min(b,x));svg+=`<rect x="${X(a)}" y="${Y(s.height)}" width="${X(cut)-X(a)}" height="${Y(0)-Y(s.height)}" fill="#209b83" fill-opacity=".5"/>`;
-svg+=`<line x1="60" y1="280" x2="740" y2="280" stroke="#526c7d"/><line x1="${X(x)}" y1="28" x2="${X(x)}" y2="280" stroke="#167d69" stroke-width="2" stroke-dasharray="5 4"/><text x="${X(x)}" y="20" text-anchor="middle" fill="#167d69" font-size="16">x = ${fmt(x)}</text><text x="64" y="18" fill="#526c7d" font-size="15">f(t)</text><text x="758" y="285" fill="#526c7d" font-size="15">t</text>`;
-el('drawing').innerHTML=svg;el('plotDesc').textContent=`Uniform distribution from ${a} to ${b}, with density ${fmt(s.height)}. Probability up to ${x} is ${fmt(s.p)}.`;
-}
-['a','b','x'].forEach(id=>el(id).addEventListener('input',()=>update(id)));
-el('reset').addEventListener('click',()=>{el('a').value=0;el('b').value=4;el('x').value=2;update();});update();
-</script></body></html>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Uniform Distribution</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: #203849;
+      background: white;
+    }
+
+    main {
+      max-width: 760px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    h2 { font-size: 18px; margin-bottom: 6px; }
+    p { color: #607585; }
+
+    .control {
+      padding: 16px;
+      background: #f1f7fa;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      height: 44px;
+      accent-color: #168aab;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .value {
+      color: #16876f;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 4px;
+    }
+
+    section { margin-bottom: 24px; }
+
+    @media (max-width: 480px) {
+      main { padding: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+<main>
+  <h1>Uniform Distribution</h1>
+  <p>Fixed parameters: a = 0, b = 4</p>
+
+  <div class="control">
+    <label for="x">
+      Move x
+      <output id="xValue" for="x">2</output>
+    </label>
+
+    <input
+      id="x"
+      type="range"
+      min="-1"
+      max="5"
+      step="0.05"
+      value="2"
+    >
+  </div>
+
+  <section>
+    <h2>PDF — Probability Density</h2>
+    <div class="value" id="pdfValue"></div>
+    <svg
+      id="pdf"
+      viewBox="0 0 720 265"
+      role="img"
+      aria-label="Uniform probability density"
+    ></svg>
+  </section>
+
+  <section>
+    <h2>CDF — Cumulative Probability</h2>
+    <div class="value" id="cdfValue" aria-live="polite"></div>
+    <svg
+      id="cdf"
+      viewBox="0 0 720 265"
+      role="img"
+      aria-label="Uniform cumulative distribution"
+    ></svg>
+  </section>
+</main>
+
+<script>
+  const a = 0;
+  const b = 4;
+
+  const get = id => document.getElementById(id);
+  const format = value => Number(value.toFixed(3)).toString();
+
+  // Fixed graph coordinates.
+  const X = value => 60 + (value + 1) * 620 / 6;
+  const Y = (value, maximum) => 220 - value * 180 / maximum;
+
+  function line(x1, y1, x2, y2, color, dashed = false) {
+    return `
+      <line
+        x1="${x1}" y1="${y1}"
+        x2="${x2}" y2="${y2}"
+        stroke="${color}"
+        stroke-width="1.5"
+        ${dashed ? 'stroke-dasharray="5 4"' : ""}
+      />
+    `;
+  }
+
+  function text(x, y, content, anchor = "middle") {
+    return `
+      <text
+        x="${x}" y="${y}"
+        text-anchor="${anchor}"
+        font-family="Arial"
+        font-size="15"
+        fill="#607585"
+      >${content}</text>
+    `;
+  }
+
+  function axes(maximum, ticks) {
+    let result = "";
+
+    ticks.forEach(value => {
+      const y = Y(value, maximum);
+      result += line(60, y, 680, y, "#e0e8ed");
+      result += text(49, y + 5, format(value), "end");
+    });
+
+    result += line(60, 220, 680, 220, "#718591");
+
+    for (let value = -1; value <= 5; value++) {
+      result += text(X(value), 245, value);
+    }
+
+    return result + text(700, 225, "t");
+  }
+
+  function update() {
+    const x = Number(get("x").value);
+    const height = 1 / (b - a);
+    const density = x >= a && x <= b ? height : 0;
+
+    const probability = Math.max(
+      0,
+      Math.min(1, (x - a) / (b - a))
+    );
+
+    get("xValue").textContent = format(x);
+
+    get("pdfValue").textContent =
+      `f(${format(x)}) = ${format(density)}`;
+
+    get("cdfValue").textContent =
+      `F(${format(x)}) = P(X ≤ ${format(x)}) = ` +
+      `${format(probability)} (${format(probability * 100)}%)`;
+
+    // PDF
+    const pdfMaximum = 0.3;
+    const top = Y(height, pdfMaximum);
+
+    let pdf = axes(pdfMaximum, [0, 0.125, 0.25]);
+
+    pdf += `
+      <rect
+        x="${X(a)}"
+        y="${top}"
+        width="${X(b) - X(a)}"
+        height="${220 - top}"
+        fill="#36a7cf"
+        fill-opacity="0.15"
+      />
+
+      <path
+        d="
+          M ${X(-1)} 220 H ${X(a)}
+          M ${X(a)} ${top} H ${X(b)}
+          M ${X(b)} 220 H ${X(5)}
+        "
+        fill="none"
+        stroke="#278eaf"
+        stroke-width="3"
+      />
+    `;
+
+    [a, b].forEach(bound => {
+      pdf += line(
+        X(bound), 220, X(bound), top, "#8cb8ca", true
+      );
+    });
+
+    pdf += line(X(x), 28, X(x), 220, "#16876f", true);
+
+    pdf += `
+      <circle
+        cx="${X(x)}"
+        cy="${Y(density, pdfMaximum)}"
+        r="5"
+        fill="#16876f"
+      />
+    `;
+
+    pdf += text(X(x), 20, `x = ${format(x)}`);
+    get("pdf").innerHTML = pdf;
+
+    // CDF
+    const cdfMaximum = 1.1;
+    const pointY = Y(probability, cdfMaximum);
+
+    let cdf = axes(cdfMaximum, [0, 0.25, 0.5, 0.75, 1]);
+
+    cdf += `
+      <path
+        d="
+          M ${X(-1)} 220
+          H ${X(a)}
+          L ${X(b)} ${Y(1, cdfMaximum)}
+          H ${X(5)}
+        "
+        fill="none"
+        stroke="#278eaf"
+        stroke-width="3"
+      />
+    `;
+
+    cdf += line(X(x), 220, X(x), pointY, "#16876f", true);
+    cdf += line(60, pointY, X(x), pointY, "#16876f", true);
+
+    cdf += `
+      <circle
+        cx="${X(x)}"
+        cy="${pointY}"
+        r="6"
+        fill="#16876f"
+      />
+    `;
+
+    get("cdf").innerHTML = cdf;
+  }
+
+  get("x").addEventListener("input", update);
+  update();
+</script>
+</body>
+</html>
