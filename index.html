@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -305,6 +304,8 @@
 
   let probabilityMode = false;
   let originalX = Number(slider.value);
+
+  // The second line may move to either side of the original.
   let rightX = originalX;
 
   function line(
@@ -364,12 +365,11 @@
   }
 
   /*
-   * Align the slider with the graph.
-   * In probability mode, its available range starts at
-   * the locked original line and ends at xMax.
+   * Keep the slider aligned with the full x-axis in both modes.
+   * The second line can cross the locked original line.
    */
   function configureSlider() {
-    const start = probabilityMode ? originalX : xMin;
+    const start = xMin;
 
     const leftPercent = X(start) / 720 * 100;
     const widthPercent = (X(xMax) - X(start)) / 720 * 100;
@@ -389,7 +389,7 @@
     slider.setAttribute(
       "aria-label",
       probabilityMode
-        ? "Choose the right endpoint of the interval"
+        ? "Choose the second endpoint of the interval"
         : "Choose x"
     );
 
@@ -405,10 +405,12 @@
     const density = densityAt(activeX);
     const probability = cdfAt(activeX);
 
-    const intervalProbability = Math.max(
-      0,
-      cdfAt(rightX) - cdfAt(originalX)
-    );
+    // Sort the endpoints so either direction works.
+    const lowerX = Math.min(originalX, rightX);
+    const upperX = Math.max(originalX, rightX);
+
+    const intervalProbability =
+      cdfAt(upperX) - cdfAt(lowerX);
 
     get("pdfValue").textContent =
       `f(${format(activeX)}) = ${format(density)}`;
@@ -424,14 +426,14 @@
 
     if (probabilityMode) {
       get("intervalValue").innerHTML =
-        `<span>P(${format(originalX)} ≤ X ≤ ` +
-        `${format(rightX)})</span> ` +
+        `<span>P(${format(lowerX)} ≤ X ≤ ` +
+        `${format(upperX)})</span> ` +
         `<span>= ${format(intervalProbability)} ` +
         `(${format(intervalProbability * 100)}%)</span>`;
 
       get("cdfDifference").innerHTML =
-        `<span>F(${format(rightX)}) − ` +
-        `F(${format(originalX)})</span> ` +
+        `<span>F(${format(upperX)}) − ` +
+        `F(${format(lowerX)})</span> ` +
         `<span>= ${format(intervalProbability)} ` +
         `(${format(intervalProbability * 100)}%)</span>`;
     }
@@ -456,8 +458,8 @@
 
     // Shade only the part of the interval inside [a, b].
     if (probabilityMode) {
-      const shadeLeft = Math.max(a, originalX);
-      const shadeRight = Math.min(b, rightX);
+      const shadeLeft = Math.max(a, lowerX);
+      const shadeRight = Math.min(b, upperX);
 
       if (shadeRight > shadeLeft) {
         pdf += `
@@ -507,7 +509,7 @@
       originalColor
     );
 
-    // Movable right line.
+    // Movable second line.
     if (probabilityMode) {
       pdf += line(
         X(rightX), 28,
@@ -590,7 +592,7 @@
     const value = Number(slider.value);
 
     if (probabilityMode) {
-      rightX = Math.max(originalX, value);
+      rightX = value;
     } else {
       originalX = value;
     }
@@ -607,8 +609,8 @@
         cdfAt(originalX) + initialProbability
       );
 
-      // Inverse CDF gives the endpoint for 5% additional mass.
-      // If the original line is beyond b, no mass remains.
+      // Initially place the second line to the right.
+      // Select 5% additional probability when available.
       rightX = originalX >= b
         ? Math.min(xMax, originalX + initialProbability * (b - a))
         : a + targetProbability * (b - a);
