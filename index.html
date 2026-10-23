@@ -1,3 +1,8 @@
+Clicking **Check probability** locks the original line and adds a movable line to its right. The shaded area shows the probability between them. Clicking again restores the original mode.
+
+The new line starts with **5% probability between the lines**, whenever at least 5% remains to the right; otherwise, it selects the remaining probability.
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,10 +28,45 @@
       --gap: 10px;
     }
 
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
     p {
-      margin: 0 0 8px;
+      margin: 0;
       color: #607585;
       font-size: 12px;
+    }
+
+    button {
+      padding: 5px 9px;
+      border: 1px solid #a8b8c2;
+      border-radius: 5px;
+      background: white;
+      color: #203849;
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: #f1f7fa;
+    }
+
+    button[aria-pressed="true"] {
+      border-color: #d88426;
+      background: #fff4e6;
+      color: #a75f10;
+    }
+
+    button:focus-visible {
+      outline: 2px solid #168aab;
+      outline-offset: 2px;
     }
 
     section {
@@ -55,10 +95,18 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Each part stays together, allowing at most two lines. */
     .value span {
       display: inline-block;
       white-space: nowrap;
+    }
+
+    .interval-value {
+      margin-top: 7px;
+      color: #b66a18;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     .control {
@@ -79,6 +127,7 @@
       margin: 0;
       background: transparent;
       cursor: pointer;
+      --thumb-color: #168aab;
     }
 
     input[type="range"]::-webkit-slider-runnable-track {
@@ -115,7 +164,7 @@
       margin-top: -4px;
       border: none;
       border-radius: 50%;
-      background: #168aab;
+      background: var(--thumb-color);
     }
 
     input[type="range"]::-moz-range-thumb {
@@ -123,12 +172,24 @@
       height: 10px;
       border: none;
       border-radius: 50%;
-      background: #168aab;
+      background: var(--thumb-color);
     }
 
     input[type="range"]:focus-visible {
       outline: 2px solid #168aab;
       outline-offset: 2px;
+    }
+
+    /* Fixed marker for the original value in probability mode. */
+    .fixed-marker {
+      position: absolute;
+      top: 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16876f;
+      transform: translateX(-50%);
+      pointer-events: none;
     }
 
     @media (max-width: 480px) {
@@ -140,13 +201,22 @@
 
       .value { font-size: 10px; }
       h2 { font-size: 11px; }
+      button { font-size: 10px; }
     }
   </style>
 </head>
 
 <body>
 <main>
-  <p>Fixed parameters: a = 0, b = 4</p>
+  <div class="toolbar">
+    <p>Fixed parameters: a = 0, b = 4</p>
+
+    <button
+      id="checkProbability"
+      type="button"
+      aria-pressed="false"
+    >Check probability</button>
+  </div>
 
   <div class="control">
     <input
@@ -158,6 +228,13 @@
       value="2"
       aria-label="Choose x"
     >
+
+    <span
+      id="fixedMarker"
+      class="fixed-marker"
+      hidden
+      aria-hidden="true"
+    ></span>
   </div>
 
   <section>
@@ -171,6 +248,13 @@
     <div>
       <h2>PDF</h2>
       <div class="value" id="pdfValue"></div>
+
+      <div
+        class="value interval-value"
+        id="intervalValue"
+        aria-live="polite"
+        hidden
+      ></div>
     </div>
   </section>
 
@@ -185,6 +269,12 @@
     <div>
       <h2>CDF</h2>
       <div class="value" id="cdfValue" aria-live="polite"></div>
+
+      <div
+        class="value interval-value"
+        id="cdfDifference"
+        hidden
+      ></div>
     </div>
   </section>
 </main>
@@ -193,19 +283,44 @@
   const a = 0;
   const b = 4;
 
+  const xMin = -1;
+  const xMax = 5;
+  const initialProbability = 0.05;
+
+  const originalColor = "#16876f";
+  const secondColor = "#d88426";
+
   const get = id => document.getElementById(id);
   const format = value => Number(value.toFixed(3)).toString();
 
-  const X = value => 60 + (value + 1) * 620 / 6;
-  const Y = (value, maximum) => 220 - value * 180 / maximum;
+  const X = value =>
+    60 + (value - xMin) * 620 / (xMax - xMin);
 
-  function line(x1, y1, x2, y2, color, dashed = false) {
+  const Y = (value, maximum) =>
+    220 - value * 180 / maximum;
+
+  const cdfAt = value =>
+    Math.max(0, Math.min(1, (value - a) / (b - a)));
+
+  const densityAt = value =>
+    value >= a && value <= b ? 1 / (b - a) : 0;
+
+  const slider = get("x");
+
+  let probabilityMode = false;
+  let originalX = Number(slider.value);
+  let rightX = originalX;
+
+  function line(
+    x1, y1, x2, y2, color,
+    dashed = false, width = 1.5
+  ) {
     return `
       <line
         x1="${x1}" y1="${y1}"
         x2="${x2}" y2="${y2}"
         stroke="${color}"
-        stroke-width="1.5"
+        stroke-width="${width}"
         ${dashed ? 'stroke-dasharray="5 4"' : ""}
       />
     `;
@@ -223,6 +338,17 @@
     `;
   }
 
+  function circle(x, y, color, radius = 5) {
+    return `
+      <circle
+        cx="${x}"
+        cy="${y}"
+        r="${radius}"
+        fill="${color}"
+      />
+    `;
+  }
+
   function axes(maximum, ticks) {
     let result = "";
 
@@ -234,25 +360,85 @@
 
     result += line(60, 220, 680, 220, "#718591");
 
-    for (let value = -1; value <= 5; value++) {
+    for (let value = xMin; value <= xMax; value++) {
       result += text(X(value), 245, value);
     }
 
     return result + text(700, 225, "t");
   }
 
+  /*
+   * Align the slider with the graph.
+   * In probability mode, its available range starts at
+   * the locked original line and ends at xMax.
+   */
+  function configureSlider() {
+    const start = probabilityMode ? originalX : xMin;
+
+    const leftPercent = X(start) / 720 * 100;
+    const widthPercent = (X(xMax) - X(start)) / 720 * 100;
+
+    slider.min = String(start);
+    slider.max = String(xMax);
+    slider.value = String(probabilityMode ? rightX : originalX);
+
+    slider.style.left = `calc(${leftPercent}% - 5px)`;
+    slider.style.width = `calc(${widthPercent}% + 10px)`;
+
+    slider.style.setProperty(
+      "--thumb-color",
+      probabilityMode ? secondColor : "#168aab"
+    );
+
+    slider.setAttribute(
+      "aria-label",
+      probabilityMode
+        ? "Choose the right endpoint of the interval"
+        : "Choose x"
+    );
+
+    get("fixedMarker").hidden = !probabilityMode;
+    get("fixedMarker").style.left =
+      `${X(originalX) / 720 * 100}%`;
+  }
+
   function update() {
-    const x = Number(get("x").value);
     const height = 1 / (b - a);
-    const density = x >= a && x <= b ? height : 0;
-    const probability = Math.max(0, Math.min(1, (x - a) / (b - a)));
+
+    const activeX = probabilityMode ? rightX : originalX;
+    const density = densityAt(activeX);
+    const probability = cdfAt(activeX);
+
+    const intervalProbability = Math.max(
+      0,
+      cdfAt(rightX) - cdfAt(originalX)
+    );
 
     get("pdfValue").textContent =
-      `f(${format(x)}) = ${format(density)}`;
+      `f(${format(activeX)}) = ${format(density)}`;
 
     get("cdfValue").innerHTML =
-      `<span>F(${format(x)}) = P(X ≤ ${format(x)})</span> ` +
-      `<span>= ${format(probability)} (${format(probability * 100)}%)</span>`;
+      `<span>F(${format(activeX)}) = ` +
+      `P(X ≤ ${format(activeX)})</span> ` +
+      `<span>= ${format(probability)} ` +
+      `(${format(probability * 100)}%)</span>`;
+
+    get("intervalValue").hidden = !probabilityMode;
+    get("cdfDifference").hidden = !probabilityMode;
+
+    if (probabilityMode) {
+      get("intervalValue").innerHTML =
+        `<span>P(${format(originalX)} ≤ X ≤ ` +
+        `${format(rightX)})</span> ` +
+        `<span>= ${format(intervalProbability)} ` +
+        `(${format(intervalProbability * 100)}%)</span>`;
+
+      get("cdfDifference").innerHTML =
+        `<span>F(${format(rightX)}) − ` +
+        `F(${format(originalX)})</span> ` +
+        `<span>= ${format(intervalProbability)} ` +
+        `(${format(intervalProbability * 100)}%)</span>`;
+    }
 
     // PDF
     const pdfMaximum = 0.3;
@@ -260,6 +446,7 @@
 
     let pdf = axes(pdfMaximum, [0, 0.125, 0.25]);
 
+    // Full distribution background.
     pdf += `
       <rect
         x="${X(a)}"
@@ -269,12 +456,33 @@
         fill="#36a7cf"
         fill-opacity="0.15"
       />
+    `;
 
+    // Shade only the part of the interval inside [a, b].
+    if (probabilityMode) {
+      const shadeLeft = Math.max(a, originalX);
+      const shadeRight = Math.min(b, rightX);
+
+      if (shadeRight > shadeLeft) {
+        pdf += `
+          <rect
+            x="${X(shadeLeft)}"
+            y="${top}"
+            width="${X(shadeRight) - X(shadeLeft)}"
+            height="${220 - top}"
+            fill="${secondColor}"
+            fill-opacity="0.3"
+          />
+        `;
+      }
+    }
+
+    pdf += `
       <path
         d="
-          M ${X(-1)} 220 H ${X(a)}
+          M ${X(xMin)} 220 H ${X(a)}
           M ${X(a)} ${top} H ${X(b)}
-          M ${X(b)} 220 H ${X(5)}
+          M ${X(b)} 220 H ${X(xMax)}
         "
         fill="none"
         stroke="#278eaf"
@@ -283,35 +491,55 @@
     `;
 
     [a, b].forEach(bound => {
-      pdf += line(X(bound), 220, X(bound), top, "#8cb8ca", true);
+      pdf += line(
+        X(bound), 220,
+        X(bound), top,
+        "#8cb8ca", true
+      );
     });
 
-    pdf += line(X(x), 28, X(x), 220, "#16876f", true);
+    // Original line: fixed while probability mode is active.
+    pdf += line(
+      X(originalX), 28,
+      X(originalX), 220,
+      originalColor, true
+    );
 
-    pdf += `
-      <circle
-        cx="${X(x)}"
-        cy="${Y(density, pdfMaximum)}"
-        r="5"
-        fill="#16876f"
-      />
-    `;
+    pdf += circle(
+      X(originalX),
+      Y(densityAt(originalX), pdfMaximum),
+      originalColor
+    );
+
+    // Movable right line.
+    if (probabilityMode) {
+      pdf += line(
+        X(rightX), 28,
+        X(rightX), 220,
+        secondColor, true
+      );
+
+      pdf += circle(
+        X(rightX),
+        Y(densityAt(rightX), pdfMaximum),
+        secondColor
+      );
+    }
 
     get("pdf").innerHTML = pdf;
 
     // CDF
     const cdfMaximum = 1.1;
-    const pointY = Y(probability, cdfMaximum);
 
     let cdf = axes(cdfMaximum, [0, 0.25, 0.5, 0.75, 1]);
 
     cdf += `
       <path
         d="
-          M ${X(-1)} 220
+          M ${X(xMin)} 220
           H ${X(a)}
           L ${X(b)} ${Y(1, cdfMaximum)}
-          H ${X(5)}
+          H ${X(xMax)}
         "
         fill="none"
         stroke="#278eaf"
@@ -319,23 +547,93 @@
       />
     `;
 
-    cdf += line(X(x), 220, X(x), pointY, "#16876f", true);
-    cdf += line(60, pointY, X(x), pointY, "#16876f", true);
+    const originalY = Y(cdfAt(originalX), cdfMaximum);
 
-    cdf += `
-      <circle
-        cx="${X(x)}"
-        cy="${pointY}"
-        r="6"
-        fill="#16876f"
-      />
-    `;
+    cdf += line(
+      X(originalX), 220,
+      X(originalX), originalY,
+      originalColor, true
+    );
+
+    cdf += line(
+      60, originalY,
+      X(originalX), originalY,
+      originalColor, true
+    );
+
+    cdf += circle(
+      X(originalX), originalY,
+      originalColor, 6
+    );
+
+    if (probabilityMode) {
+      const rightY = Y(cdfAt(rightX), cdfMaximum);
+
+      cdf += line(
+        X(rightX), 220,
+        X(rightX), rightY,
+        secondColor, true
+      );
+
+      cdf += line(
+        60, rightY,
+        X(rightX), rightY,
+        secondColor, true
+      );
+
+      cdf += circle(
+        X(rightX), rightY,
+        secondColor, 6
+      );
+    }
 
     get("cdf").innerHTML = cdf;
   }
 
-  get("x").addEventListener("input", update);
+  slider.addEventListener("input", () => {
+    const value = Number(slider.value);
+
+    if (probabilityMode) {
+      rightX = Math.max(originalX, value);
+    } else {
+      originalX = value;
+    }
+
+    update();
+  });
+
+  get("checkProbability").addEventListener("click", () => {
+    probabilityMode = !probabilityMode;
+
+    if (probabilityMode) {
+      const targetProbability = Math.min(
+        1,
+        cdfAt(originalX) + initialProbability
+      );
+
+      // Inverse CDF gives the endpoint for 5% additional mass.
+      // If the original line is beyond b, no mass remains.
+      rightX = originalX >= b
+        ? Math.min(xMax, originalX + initialProbability * (b - a))
+        : a + targetProbability * (b - a);
+
+      rightX = Number(
+        Math.max(originalX, Math.min(xMax, rightX)).toFixed(10)
+      );
+    }
+
+    get("checkProbability").setAttribute(
+      "aria-pressed",
+      String(probabilityMode)
+    );
+
+    configureSlider();
+    update();
+  });
+
+  configureSlider();
   update();
 </script>
 </body>
 </html>
+```
